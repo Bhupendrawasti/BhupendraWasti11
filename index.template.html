@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nepal License Print Check | Smart Card Status</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .card h1 { color: #333; margin-bottom: 10px; font-size: 28px; text-align: center; }
+        .subtitle { color: #666; margin-bottom: 30px; border-bottom: 2px solid #667eea; padding-bottom: 10px; text-align: center; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover { transform: translateY(-2px); }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 15px;
+            display: none;
+        }
+        .result.printed {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border-left: 5px solid #2ecc71;
+            display: block;
+        }
+        .result.not-found {
+            background: #fee;
+            border-left: 5px solid #e74c3c;
+            display: block;
+        }
+        .result.loading {
+            background: #f0f0f0;
+            text-align: center;
+            display: block;
+        }
+        .license-details { margin-top: 15px; }
+        .detail-row {
+            display: flex;
+            padding: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        .detail-label { font-weight: 700; width: 120px; color: #333; }
+        .detail-value { flex: 1; color: #555; }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .badge.printed { background: #2ecc71; color: white; }
+        .status-icon { font-size: 48px; text-align: center; margin-bottom: 15px; }
+        .footer { text-align: center; color: white; margin-top: 20px; font-size: 14px; }
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .data-source {
+            background: #f0f4ff;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 12px;
+            text-align: center;
+        }
+        .db-status {
+            background: #e3f2fd;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            text-align: center;
+        }
+        .format-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>🇳🇵 Nepal Driving License</h1>
+        <div class="subtitle">Smart Card Status Checker</div>
+        
+        <div id="dbStatus" class="db-status">
+            🔄 Connecting to database...
+        </div>
+        
+        <div class="input-group">
+            <label>📄 Enter License Number</label>
+            <input type="text" id="licenseInput" placeholder="Example: 01-01-12345678" autocomplete="off">
+        </div>
+
+        <button onclick="searchLicense()">🔍 Check Status</button>
+        
+        <div class="format-hint">
+            Format: 01-01-12345678 or 010112345678
+        </div>
+
+        <div id="result" class="result"></div>
+
+        <div class="data-source">
+            📢 <strong>Disclaimer:</strong> Unofficial reference only. Always verify via official 
+            <a href="https://dotm.gov.np/category/details-of-printed-licenses/" target="_blank">dotm.gov.np</a><br>
+            📊 <strong>Data Source:</strong> Publicly available data from 
+            <a href="https://dotm.gov.np/category/details-of-printed-licenses/" target="_blank">Department of Transport Management (DOTM), Nepal</a><br>
+            🔍 Last sync: April 2026
+        </div>
+    </div>
+    <div class="footer">
+        <p>© 2026 Nepal License Print Check | Unofficial Helper Tool</p>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = '{{SUPABASE_URL}}';
+    const SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}';
+    
+    let isConnected = false;
+    
+    async function testConnection() {
+        const dbStatus = document.getElementById('dbStatus');
+        
+        if (SUPABASE_URL === '{{SUPABASE_URL}}') {
+            dbStatus.innerHTML = '⚠️ Configuration missing.';
+            dbStatus.style.background = '#ffebee';
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/licenses?limit=1`, {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                }
+            });
+            
+            if (response.ok) {
+                isConnected = true;
+                dbStatus.innerHTML = '✅ Database connected | Ready to search';
+                dbStatus.style.background = '#e8f5e9';
+                dbStatus.style.color = '#2e7d32';
+            } else {
+                throw new Error('Connection failed');
+            }
+        } catch (error) {
+            dbStatus.innerHTML = '⚠️ Database connection failed.';
+            dbStatus.style.background = '#fff3e0';
+            dbStatus.style.color = '#e65100';
+        }
+    }
+    
+    async function searchLicense() {
+        const licenseNumber = document.getElementById('licenseInput').value.trim();
+        const resultDiv = document.getElementById('result');
+        
+        if (!licenseNumber) {
+            resultDiv.className = 'result not-found';
+            resultDiv.innerHTML = '<h3>⚠️ Please enter a license number</h3>';
+            return;
+        }
+        
+        let normalized = licenseNumber;
+        if (licenseNumber.match(/^\d{12}$/)) {
+            normalized = `${licenseNumber.substring(0,2)}-${licenseNumber.substring(2,4)}-${licenseNumber.substring(4,12)}`;
+        }
+        
+        if (!normalized.match(/^\d{2}-\d{2}-\d{8}$/)) {
+            resultDiv.className = 'result not-found';
+            resultDiv.innerHTML = '<h3>⚠️ Invalid format</h3><p>Please use format: 01-01-12345678 or 010112345678</p>';
+            return;
+        }
+        
+        resultDiv.className = 'result loading';
+        resultDiv.innerHTML = `<div class="loading-spinner"></div><p>Searching database...</p>`;
+        
+        try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/licenses?lic=eq.${encodeURIComponent(normalized)}`, {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const data = await response.json();
+            const license = data[0];
+            
+            if (license && license.status === 'printed') {
+                showPrintedResult(license);
+            } else if (license) {
+                showPendingResult(license);
+            } else {
+                showNotFoundResult(normalized);
+            }
+        } catch (error) {
+            resultDiv.className = 'result not-found';
+            resultDiv.innerHTML = `<div class="status-icon">⚠️</div><h3>Search Error</h3><p>${error.message}</p>`;
+        }
+    }
+    
+    function showPrintedResult(license) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.className = 'result printed';
+        
+        resultDiv.innerHTML = `
+            <div class="status-icon">✅</div>
+            <h3>Smart Card Printed & Ready!</h3>
+            <div class="license-details">
+                <div class="detail-row">
+                    <div class="detail-label">License Number:</div>
+                    <div class="detail-value"><strong>${escapeHtml(license.lic)}</strong></div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Holder Name:</div>
+                    <div class="detail-value"><strong style="font-size: 18px;">${escapeHtml(license.holdername)}</strong></div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Category:</div>
+                    <div class="detail-value"><span class="badge printed">${escapeHtml(license.category)}</span></div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Office:</div>
+                    <div class="detail-value">${escapeHtml(license.office)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Print Date:</div>
+                    <div class="detail-value">${escapeHtml(license.printeddate)}</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(46,204,113,0.2); border-radius: 10px;">
+                <strong>📌 Collection Instructions:</strong><br>
+                • Visit ${escapeHtml(license.office)} Transport Office<br>
+                • Bring original receipt and citizenship
+            </div>
+        `;
+    }
+    
+    function showPendingResult(license) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.className = 'result not-found';
+        
+        resultDiv.innerHTML = `
+            <div class="status-icon">⏰</div>
+            <h3>License Found - Pending Print</h3>
+            <div class="license-details">
+                <div class="detail-row">
+                    <div class="detail-label">License Number:</div>
+                    <div class="detail-value">${escapeHtml(license.lic)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Holder Name:</div>
+                    <div class="detail-value">${escapeHtml(license.holdername)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Category:</div>
+                    <div class="detail-value">${escapeHtml(license.category)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Status:</div>
+                    <div class="detail-value">${escapeHtml(license.status)}</div>
+                </div>
+            </div>
+            <p style="margin-top: 15px;">Your smart card is in the printing queue. Please check again in 2-3 weeks.</p>
+        `;
+    }
+    
+    function showNotFoundResult(licenseNumber) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.className = 'result not-found';
+        
+        resultDiv.innerHTML = `
+            <div class="status-icon">🔍</div>
+            <h3>License Not Found</h3>
+            <div class="detail-row">
+                <div class="detail-label">Searched:</div>
+                <div class="detail-value">${escapeHtml(licenseNumber)}</div>
+            </div>
+            <p style="margin-top: 15px;">No record found in the current datasets.<br>
+            Please check again later or visit the official 
+            <a href="https://dotm.gov.np/category/details-of-printed-licenses/" target="_blank">DOTM website</a> directly.</p>
+        `;
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    testConnection();
+    document.getElementById('licenseInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') searchLicense();
+    });
+</script>
+</body>
+</html>
