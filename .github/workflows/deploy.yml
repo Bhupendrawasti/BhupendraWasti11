@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'    # ← Changed from '20' to '24'
       
       - name: Build with environment variables
         run: node build.js
