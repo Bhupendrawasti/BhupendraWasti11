@@ -1,4 +1,4 @@
-# 🇳🇵 Nepal Driving License Print Checker
+I'm# 🇳🇵 Nepal Driving License Print Checker
 
 A fast, secure web tool to check Nepal driving license smart card print status. Search among 68,000+ records and get instant results.
 
@@ -11,8 +11,7 @@ A fast, secure web tool to check Nepal driving license smart card print status. 
 
 ## 🚀 Live Demo
 
-[nepal license checker](https://YOUR_USERNAME.github.io/nepal-license-checker)
-
+[Nepali license checker](https://licensecheck.bhupendrawasti.com.np/)
 ## 📋 How to Use
 
 1. Enter your driving license number (format: `01-01-12345678`)
