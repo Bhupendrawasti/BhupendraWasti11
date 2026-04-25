@@ -1,0 +1,7 @@
+{
+  "name": "nepal-license-checker",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.js"
+  }
+}
