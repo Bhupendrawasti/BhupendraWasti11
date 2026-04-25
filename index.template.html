@@ -104,14 +104,6 @@
             font-size: 12px;
             text-align: center;
         }
-        .db-status {
-            background: #e3f2fd;
-            padding: 8px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 12px;
-            text-align: center;
-        }
         .format-hint {
             font-size: 12px;
             color: #666;
@@ -125,10 +117,6 @@
     <div class="card">
         <h1>🇳🇵 Nepal Driving License</h1>
         <div class="subtitle">Smart Card Status Checker</div>
-        
-        <div id="dbStatus" class="db-status">
-            🔄 Connecting to database...
-        </div>
         
         <div class="input-group">
             <label>📄 Enter License Number</label>
@@ -159,40 +147,6 @@
 <script>
     const SUPABASE_URL = '{{SUPABASE_URL}}';
     const SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}';
-    
-    let isConnected = false;
-    
-    async function testConnection() {
-        const dbStatus = document.getElementById('dbStatus');
-        
-        if (SUPABASE_URL === '{{SUPABASE_URL}}') {
-            dbStatus.innerHTML = '⚠️ Configuration missing.';
-            dbStatus.style.background = '#ffebee';
-            return;
-        }
-        
-        try {
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/licenses?limit=1`, {
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                }
-            });
-            
-            if (response.ok) {
-                isConnected = true;
-                dbStatus.innerHTML = '✅ Database connected | Ready to search';
-                dbStatus.style.background = '#e8f5e9';
-                dbStatus.style.color = '#2e7d32';
-            } else {
-                throw new Error('Connection failed');
-            }
-        } catch (error) {
-            dbStatus.innerHTML = '⚠️ Database connection failed.';
-            dbStatus.style.background = '#fff3e0';
-            dbStatus.style.color = '#e65100';
-        }
-    }
     
     async function searchLicense() {
         const licenseNumber = document.getElementById('licenseInput').value.trim();
@@ -338,7 +292,6 @@
         });
     }
     
-    testConnection();
     document.getElementById('licenseInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') searchLicense();
     });
